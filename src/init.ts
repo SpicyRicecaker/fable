@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { UICanvas } from './App'
 // import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
 import { Enemy } from './lib'
 import { Monad, Option } from './monad'
@@ -86,13 +87,6 @@ export class Game {
         return mesh
       })()
     }
-    this.mouse = {
-      locked: false,
-      mousedown: false,
-      pointer: new THREE.Vector2(0, 0),
-      realPointer: new THREE.Vector2(0, 0),
-      raycaster: new THREE.Raycaster()
-    }
     this.scene = new THREE.Scene()
     this.camera = new THREE.PerspectiveCamera(
       50,
@@ -104,6 +98,19 @@ export class Game {
     this.ratio = ratio
     this.width = this.ratio * window.innerWidth
     this.height = this.ratio * window.innerHeight
+    // reduntant with above 3 lines
+    this.resize(renderer)
+    this.mouse = {
+      locked: false,
+      mousedown: false,
+      pointer: new THREE.Vector2(0, 0),
+      realPointer: new THREE.Vector2(
+        this.width / ratio / 2,
+        this.height / ratio / 2
+      ),
+      raycaster: new THREE.Raycaster()
+    }
+
     this.objects = []
     this.mode = Mode.Gameplay
     this.objectStore = {}
@@ -172,6 +179,17 @@ export class Game {
     this.regenKeybindings()
   }
 
+  resize(renderer: THREE.Renderer): void {
+    this.ratio = window.devicePixelRatio
+    this.width = this.ratio * window.innerWidth
+    this.height = this.ratio * window.innerHeight
+
+    renderer.setSize(this.width, this.height, false)
+
+    this.camera.aspect = this.width / this.height
+    this.camera.updateProjectionMatrix()
+  }
+
   // takes in this.keybindings, and for every keybinding, maps it to an array of actions
   regenKeybindings(): void {
     this.upKeybindings.clear()
@@ -206,6 +224,36 @@ export class Game {
       }
     }
     // console.log(this.up)
+  }
+
+  setDestination() {
+    // assign pointer
+    this.mouse.raycaster.setFromCamera(this.mouse.pointer, this.camera)
+
+    const intersects = this.mouse.raycaster.intersectObjects(
+      this.scene.children
+    )
+
+    for (let i = 0; i < intersects.length; i++) {
+      if (intersects[i].object.uuid === this.objectStore.floorUuid) {
+        this.player.destination = Monad.some(intersects[i].point)
+      } else {
+        // object clicked! For now ignore and treat as floor, in the
+        // future implement some particles
+        // console.log("object clicked");
+      }
+
+      // TODO we have to consider autoattacking objects, but for now we'll just get the latest i, which is the floor, because we want to get movement down.
+      // TODO also want to spawn some sort of particle here when clicking.
+      // I think that's probably an animation best done in blender
+
+      // const geometry = new THREE.BoxGeometry(100, 100, 10);
+      // const material = new THREE.MeshPhongMaterial({ color: 0x123456 });
+
+      // const mesh = new THREE.Mesh(geometry, material);
+      // mesh.position.set(intersects[i].point.x, intersects[i].point.y, 0);
+      // scene.add(mesh);
+    }
   }
 }
 
@@ -272,18 +320,16 @@ export const init = (renderer: THREE.WebGLRenderer): Game => {
   return g
 }
 
-export const initListeners = (renderer: THREE.Renderer, g: Game): void => {
+export const initListeners = (
+  renderer: THREE.Renderer,
+  g: Game,
+  uICanvas: UICanvas
+): void => {
   const [camera] = [g.camera]
 
   window.addEventListener('resize', () => {
-    g.ratio = window.devicePixelRatio
-    g.width = g.ratio * window.innerWidth
-    g.height = g.ratio * window.innerHeight
-
-    renderer.setSize(g.width, g.height, false)
-
-    camera.aspect = g.width / g.height
-    camera.updateProjectionMatrix()
+    g.resize(renderer)
+    uICanvas.resize(g)
   })
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -381,6 +427,7 @@ export const initListeners = (renderer: THREE.Renderer, g: Game): void => {
   }
 
   const updatePosition = (e: MouseEvent) => {
+    console.log('mousemove', e.movementX, e.movementY)
     g.mouse.realPointer.x += e.movementX
     g.mouse.realPointer.y += e.movementY
     // console.log(g.mouse.realPointer)
@@ -409,7 +456,16 @@ export const initListeners = (renderer: THREE.Renderer, g: Game): void => {
 
   window.addEventListener('mousedown', (e: MouseEvent) => {
     if (document.pointerLockElement === null) {
+      // set that as the desination
       renderer.domElement.requestPointerLock()
+      // after requesting, move the 'fake' cursor to the player's position
+      // g.mouse.realPointer.set(e.x, e.y)
+      // console.log(e.x, e.y)
+      // g.mouse.pointer.set(
+      //   (g.mouse.realPointer.x / window.innerWidth) * 2 - 1,
+      //   -(g.mouse.realPointer.y / window.innerHeight) * 2 + 1
+      // )
+      // g.setDestination()
     }
     switch (e.buttons) {
       case 1: {
@@ -417,33 +473,10 @@ export const initListeners = (renderer: THREE.Renderer, g: Game): void => {
         break
       }
       case 2: {
-        // assign pointer
-        g.mouse.raycaster.setFromCamera(g.mouse.pointer, camera)
-
-        const intersects = g.mouse.raycaster.intersectObjects(g.scene.children)
-
-        for (let i = 0; i < intersects.length; i++) {
-          if (intersects[i].object.uuid === g.objectStore.floorUuid) {
-            g.player.destination = Monad.some(intersects[i].point)
-          } else {
-            // object clicked! For now ignore and treat as floor, in the
-            // future implement some particles
-            // console.log("object clicked");
-          }
-
-          // TODO we have to consider autoattacking objects, but for now we'll just get the latest i, which is the floor, because we want to get movement down.
-          // TODO also want to spawn some sort of particle here when clicking.
-          // I think that's probably an animation best done in blender
-
-          // const geometry = new THREE.BoxGeometry(100, 100, 10);
-          // const material = new THREE.MeshPhongMaterial({ color: 0x123456 });
-
-          // const mesh = new THREE.Mesh(geometry, material);
-          // mesh.position.set(intersects[i].point.x, intersects[i].point.y, 0);
-          // scene.add(mesh);
-        }
+        g.setDestination()
         break
       }
+      // scroll lock to move the camera
       case 4: {
         break
       }

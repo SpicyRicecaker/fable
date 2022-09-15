@@ -1,25 +1,38 @@
 import { Component, Show, onMount } from 'solid-js'
 import * as THREE from 'three'
-import { init, initListeners, Mode } from './init'
+import { Game, init, initListeners, Mode } from './init'
 import { run } from './lib'
+
+export class UICanvas {
+  canvas: HTMLCanvasElement
+  ctx: CanvasRenderingContext2D
+
+  constructor(g: Game) {
+    this.canvas = document.createElement('canvas')
+    this.canvas.style.position = 'absolute'
+    this.canvas.style.top = '0'
+    this.canvas.style.left = '0'
+
+    this.ctx = this.canvas.getContext('2d')!
+    this.resize(g)
+  }
+
+  resize(g: Game) {
+    this.canvas.width = g.width / g.ratio
+    this.canvas.height = g.height / g.ratio
+  }
+}
 
 const App: Component = () => {
   const renderer = new THREE.WebGLRenderer({ antialias: true })
 
   const g = init(renderer)
-  // wonder if we need onmount here
-  onMount(() => {
-    initListeners(renderer, g)
-  })
+  const uICanvas = new UICanvas(g)
 
   let start: null | number = null
 
-  let canvas: HTMLCanvasElement
-
   onMount(() => {
-    const ctx = canvas.getContext('2d')!
-    canvas.width = g.width / g.ratio
-    canvas.height = g.height / g.ratio
+    initListeners(renderer, g, uICanvas)
 
     const gameLoop = (timestamp: number): void => {
       if (start === null) {
@@ -28,7 +41,7 @@ const App: Component = () => {
       const elapsed = timestamp - start
       start = timestamp
 
-      run(elapsed, g, renderer, ctx)
+      run(elapsed, g, renderer, uICanvas.ctx)
 
       renderer.render(g.scene, g.camera)
 
@@ -46,10 +59,10 @@ const App: Component = () => {
         </Show>
         <div></div>
       </div> */}
-      <canvas
-        ref={canvas!}
+      {uICanvas.canvas}
+      {/* <canvas ref={uICanvas.canvas}
         style={{ position: 'absolute', top: 0, left: 0 }}
-      ></canvas>
+      ></canvas> */}
       {renderer.domElement}
     </>
   )

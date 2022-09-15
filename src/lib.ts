@@ -21,7 +21,7 @@ export const run = (
     ctx.clearRect(0, 0, g.width, g.height)
     // draw triangle at cursor
     ctx.beginPath()
-    ctx.fillStyle = 'white'
+    ctx.fillStyle = 'red'
     ctx.fillRect(g.mouse.realPointer.x, g.mouse.realPointer.y, 50, 50)
     // ctx.moveTo(g.mouse.realPointer.x, g.mouse.realPointer.y)
     // ctx.moveTo(g.mouse.realPointer.x + 100, g.mouse.realPointer.y)
