@@ -14,8 +14,13 @@ const App: Component = () => {
 
   let start: null | number = null
 
-  onMount(async () => {
-    // console.log(renderer.domElement)
+  let canvas: HTMLCanvasElement
+
+  onMount(() => {
+    const ctx = canvas.getContext('2d')!
+    canvas.width = g.width / g.ratio
+    canvas.height = g.height / g.ratio
+
     const gameLoop = (timestamp: number): void => {
       if (start === null) {
         start = timestamp
@@ -23,7 +28,7 @@ const App: Component = () => {
       const elapsed = timestamp - start
       start = timestamp
 
-      run(elapsed, g, renderer)
+      run(elapsed, g, renderer, ctx)
 
       renderer.render(g.scene, g.camera)
 
@@ -35,12 +40,16 @@ const App: Component = () => {
 
   return (
     <>
-      <div style="position: fixed; top: 0; left: 0; color: white;">
+      {/* <div style="position: fixed; top: 0; left: 0; color: white;">
         <Show when={g.mode === Mode.Camera}>
           <div>Hi</div>
         </Show>
         <div></div>
-      </div>
+      </div> */}
+      <canvas
+        ref={canvas!}
+        style={{ position: 'absolute', top: 0, left: 0 }}
+      ></canvas>
       {renderer.domElement}
     </>
   )

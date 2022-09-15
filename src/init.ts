@@ -44,7 +44,6 @@ export class Game {
     pointer: THREE.Vector2
     realPointer: THREE.Vector2
     raycaster: THREE.Raycaster
-    mesh: THREE.Mesh
   }
 
   scene: THREE.Scene
@@ -92,22 +91,7 @@ export class Game {
       mousedown: false,
       pointer: new THREE.Vector2(0, 0),
       realPointer: new THREE.Vector2(0, 0),
-      raycaster: new THREE.Raycaster(),
-      mesh: (() => {
-        const triangleShape = new THREE.Shape()
-
-        const squareSize = 50
-        triangleShape.moveTo(0, 0)
-        triangleShape.lineTo(0, -squareSize)
-        triangleShape.lineTo(squareSize, 0)
-
-        const geometry = new THREE.ShapeGeometry(triangleShape)
-        const material = new THREE.MeshBasicMaterial({ color: 0xffffff })
-
-        const triangle = new THREE.Mesh(geometry, material)
-        triangle.position.set(0, 0, 1)
-        return triangle
-      })()
+      raycaster: new THREE.Raycaster()
     }
     this.scene = new THREE.Scene()
     this.camera = new THREE.PerspectiveCamera(
@@ -284,9 +268,6 @@ export const init = (renderer: THREE.WebGLRenderer): Game => {
 
   // spawn player
   scene.add(g.player.mesh)
-
-  // spawn the cursor
-  scene.add(g.mouse.mesh)
 
   return g
 }
