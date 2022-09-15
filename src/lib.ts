@@ -8,8 +8,13 @@ import { type Game } from './init'
 import { Monad } from './monad'
 
 // what runs inside the game loop
-export const run = (elapsed: number, g: Game): void => {
+export const run = (
+  elapsed: number,
+  g: Game,
+  renderer: THREE.WebGLRenderer
+): void => {
   const [player, buffer] = [g.player, g.buffer]
+
   // tick part
   // factor in player input
   // handle player movement
@@ -33,12 +38,43 @@ export const run = (elapsed: number, g: Game): void => {
     }
   })
   // if the camera is locked, also update it to focus the player's new positionk
-
   if (g.centerCamera) {
     console.log('CAMERA IS CENTERED')
     // move camera x y position to player's mesh x y position
     g.camera.position.setX(g.player.mesh.position.x)
     g.camera.position.setY(g.player.mesh.position.y)
+  }
+  // render cursor as triangle for now, will with replace with
+  // sprite
+  // console.log(g.mouse.pointer)
+  // console.log('player', g.player.mesh.position)
+  {
+    // assign pointer
+    g.mouse.raycaster.setFromCamera(g.mouse.pointer, g.camera)
+
+    const intersects = g.mouse.raycaster.intersectObjects(g.scene.children)
+
+    for (let i = 0; i < intersects.length; i++) {
+      if (intersects[i].object.uuid === g.objectStore.floorUuid) {
+        g.mouse.mesh.position.setX(intersects[i].point.x)
+        g.mouse.mesh.position.setY(intersects[i].point.y)
+      } else {
+        // object clicked! For now ignore and treat as floor, in the
+        // future implement some particles
+        // console.log("object clicked");
+      }
+
+      // TODO we have to consider autoattacking objects, but for now we'll just get the latest i, which is the floor, because we want to get movement down.
+      // TODO also want to spawn some sort of particle here when clicking.
+      // I think that's probably an animation best done in blender
+
+      // const geometry = new THREE.BoxGeometry(100, 100, 10);
+      // const material = new THREE.MeshPhongMaterial({ color: 0x123456 });
+
+      // const mesh = new THREE.Mesh(geometry, material);
+      // mesh.position.set(intersects[i].point.x, intersects[i].point.y, 0);
+      // scene.add(mesh);
+    }
   }
   g.currentSpawnRecharge += elapsed
 }

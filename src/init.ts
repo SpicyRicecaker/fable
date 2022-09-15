@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+// import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
 import { Enemy } from './lib'
 import { Monad, Option } from './monad'
 
@@ -38,9 +39,12 @@ export class Game {
   buffer: THREE.Vector3
   player: Player
   mouse: {
+    locked: boolean
     mousedown: boolean
     pointer: THREE.Vector2
+    realPointer: THREE.Vector2
     raycaster: THREE.Raycaster
+    mesh: THREE.Mesh
   }
 
   scene: THREE.Scene
@@ -75,18 +79,35 @@ export class Game {
       speed: 10,
       mesh: (() => {
         const radius = 70
-        const material = new THREE.SphereGeometry(radius)
-        const geometry = new THREE.MeshPhongMaterial({ color: 0xffffff })
+        const geometry = new THREE.SphereGeometry(radius)
+        const material = new THREE.MeshPhongMaterial({ color: 0xffffff })
 
-        const mesh = new THREE.Mesh(material, geometry)
+        const mesh = new THREE.Mesh(geometry, material)
         mesh.position.set(0, 0, 0)
         return mesh
       })()
     }
     this.mouse = {
+      locked: false,
       mousedown: false,
-      pointer: new THREE.Vector2(),
-      raycaster: new THREE.Raycaster()
+      pointer: new THREE.Vector2(0, 0),
+      realPointer: new THREE.Vector2(0, 0),
+      raycaster: new THREE.Raycaster(),
+      mesh: (() => {
+        const triangleShape = new THREE.Shape()
+
+        const squareSize = 50
+        triangleShape.moveTo(0, 0)
+        triangleShape.lineTo(0, -squareSize)
+        triangleShape.lineTo(squareSize, 0)
+
+        const geometry = new THREE.ShapeGeometry(triangleShape)
+        const material = new THREE.MeshBasicMaterial({ color: 0xffffff })
+
+        const triangle = new THREE.Mesh(geometry, material)
+        triangle.position.set(0, 0, 1)
+        return triangle
+      })()
     }
     this.scene = new THREE.Scene()
     this.camera = new THREE.PerspectiveCamera(
@@ -215,6 +236,10 @@ export const init = (renderer: THREE.WebGLRenderer): Game => {
   camera.position.y = 0
   camera.position.x = 0
 
+  // spawn a cursor
+
+  // let cursorRenderer = new CSS2DRenderer()
+
   // spawn a couple players
   {
     const geometry = new THREE.BoxGeometry(100, 100, 100)
@@ -259,6 +284,9 @@ export const init = (renderer: THREE.WebGLRenderer): Game => {
 
   // spawn player
   scene.add(g.player.mesh)
+
+  // spawn the cursor
+  scene.add(g.mouse.mesh)
 
   return g
 }
@@ -313,7 +341,8 @@ export const initListeners = (renderer: THREE.Renderer, g: Game): void => {
       case 'KeyW':
       case 'KeyA':
       case 'KeyS':
-      case 'KeyD': {
+      case 'KeyD':
+      case 'KeyY': {
         if (g.pressedKeys.get(e.code) !== undefined) {
           g.pressedKeys.delete(e.code)
           const t = g.upKeybindings.get(e.code)
@@ -331,25 +360,76 @@ export const initListeners = (renderer: THREE.Renderer, g: Game): void => {
     }
   })
 
-  window.addEventListener('mousemove', (event) => {
-    if (g.mouse.mousedown) {
-      const movementY = (-event.movementY * Math.PI * 0.3) / 180
-      const movementX = (-event.movementX * Math.PI * 0.3) / 180
-      camera.rotateX(movementY)
-      camera.rotateY(movementX)
-    }
-  })
+  // window.addEventListener('mousemove', (event) => {
+  //   // g.mouse.pointer.x += event.movementX
+  //   // g.mouse.pointer.y += event.movementY
+  //   if (g.mouse.mousedown) {
+  //     const movementY = (-event.movementY * Math.PI * 0.3) / 180
+  //     const movementX = (-event.movementX * Math.PI * 0.3) / 180
+  //     camera.rotateX(movementY)
+  //     camera.rotateY(movementX)
+  //   }
+  // })
 
-  // need to record mousemove, because when we're clicking q for example, we don't necessarily know where the cursor is
-  window.addEventListener('mousemove', (e: MouseEvent) => {
-    // code copied straight from https://threejs.org/docs/index.html?q=raycas#api/en/core/Raycaster
+  // // need to record mousemove, because when we're clicking q for example, we don't necessarily know where the cursor is
+  // window.addEventListener('mousemove', (e: MouseEvent) => {
+  //   // code copied straight from https://threejs.org/docs/index.html?q=raycas#api/en/core/Raycaster
+  //   g.mouse.pointer.set(
+  //     (e.x / window.innerWidth) * 2 - 1,
+  //     -(e.y / window.innerHeight) * 2 + 1
+  //   )
+  // })
+
+  // code from https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
+
+  // keep in mind that when the pointer is locked, the cursor basically
+  // disappears, so this event is never fired again during gameplay
+  // window.addEventListener('mousedown', (e: MouseEvent) => {
+  // })
+
+  const lockChange = () => {
+    if (document.pointerLockElement === renderer.domElement) {
+      window.addEventListener('mousemove', updatePosition)
+      // window.addEventListener('mousedown', clickDown)
+      // window.addEventListener('mouseup', clickUp)
+    } else {
+      window.removeEventListener('mousemove', updatePosition)
+      // window.removeEventListener('mousedown', clickDown)
+      // window.removeEventListener('mouseup', clickUp)
+    }
+  }
+
+  const updatePosition = (e: MouseEvent) => {
+    g.mouse.realPointer.x += e.movementX
+    g.mouse.realPointer.y += e.movementY
+    // console.log(g.mouse.realPointer)
+    // console.log(e)
+    // console.log(e)
+    // g.mouse.pointer.set(
+    //   (e.x / window.innerWidth) * 2 - 1,
+    //   -(e.y / window.innerHeight) * 2 + 1
+    // )
     g.mouse.pointer.set(
-      (e.x / window.innerWidth) * 2 - 1,
-      -(e.y / window.innerHeight) * 2 + 1
+      (g.mouse.realPointer.x / window.innerWidth) * 2 - 1,
+      -(g.mouse.realPointer.y / window.innerHeight) * 2 + 1
     )
-  })
+  }
+
+  // const clickDown = (e: MouseEvent) => {
+  //   console.log('fast click down')
+  // }
+
+  // const clickUp = (e: MouseEvent) => {
+  //   console.log('fast click up')
+  // }
+
+  window.addEventListener('pointerlockchange', lockChange, false)
+  window.addEventListener('mozpointerlockchange', lockChange, false)
 
   window.addEventListener('mousedown', (e: MouseEvent) => {
+    if (document.pointerLockElement === null) {
+      renderer.domElement.requestPointerLock()
+    }
     switch (e.buttons) {
       case 1: {
         g.mouse.mousedown = true

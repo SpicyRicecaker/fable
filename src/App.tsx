@@ -14,7 +14,8 @@ const App: Component = () => {
 
   let start: null | number = null
 
-  onMount(() => {
+  onMount(async () => {
+    // console.log(renderer.domElement)
     const gameLoop = (timestamp: number): void => {
       if (start === null) {
         start = timestamp
@@ -22,19 +23,19 @@ const App: Component = () => {
       const elapsed = timestamp - start
       start = timestamp
 
-      run(elapsed, g)
+      run(elapsed, g, renderer)
 
       renderer.render(g.scene, g.camera)
 
       requestAnimationFrame(gameLoop)
     }
+    // await renderer.domElement.requestFullscreen()
     requestAnimationFrame(gameLoop)
   })
 
   return (
     <>
       <div style="position: fixed; top: 0; left: 0; color: white;">
-        <div> </div>
         <Show when={g.mode === Mode.Camera}>
           <div>Hi</div>
         </Show>
